@@ -17,15 +17,19 @@ function getAuth() {
 
 async function recordingsFolderId(drive: any): Promise<string> {
   const found = await drive.files.list({
-    q: "name = 'Meet Recordings' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
-    fields: 'files(id)',
+    q: "name = 'Meet Recordings' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'root' in parents",
+    fields: 'files(id,name,parents)',
     spaces: 'drive',
   });
-  if (found.data.files?.[0]?.id) return found.data.files[0].id;
+  if (found.data.files?.[0]?.id) {
+    console.log(`[Drive] Verwende My-Drive-Ordner Meet Recordings: ${found.data.files[0].id}`);
+    return found.data.files[0].id;
+  }
   const created = await drive.files.create({
     requestBody: { name: 'Meet Recordings', mimeType: 'application/vnd.google-apps.folder' },
     fields: 'id',
   });
+  console.log(`[Drive] My-Drive-Ordner Meet Recordings erstellt: ${created.data.id}`);
   return created.data.id;
 }
 
@@ -186,5 +190,6 @@ export async function exportMarkdownToDrive(title: string, content: string) {
     media: { mimeType: 'text/markdown', body: content },
     fields: 'id,name,webViewLink',
   });
+  console.log(`[Drive] Markdown gespeichert: ${file.data.name} (${file.data.id})`);
   return { fileId: file.data.id, fileName: file.data.name, link: file.data.webViewLink, folder: 'Meet Recordings' };
 }
