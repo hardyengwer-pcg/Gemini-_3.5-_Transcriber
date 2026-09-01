@@ -336,10 +336,22 @@ export function App() {
 
       const recorderOptions: MediaRecorderOptions = supportedMimeType ? { mimeType: supportedMimeType } : {};
       const mediaRecorder = new MediaRecorder(stream, recorderOptions);
+      let appendQueue = Promise.resolve();
 
-      mediaRecorder.ondataavailable = (event: BlobEvent) => {
+      if (activeMode === 'protocol') {
+        await (window as any).electronAPI.startRecordingFile();
+      }
+
+      mediaRecorder.ondataavailable = async (event: BlobEvent) => {
         if (event.data && event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+          if (activeMode === 'protocol') {
+            // Nicht im Renderer puffern: direkt in die temporäre Main-Prozess-Datei schreiben.
+            appendQueue = appendQueue.then(async () => {
+              await (window as any).electronAPI.appendRecordingChunk(await event.data.arrayBuffer());
+            });
+          } else {
+            audioChunksRef.current.push(event.data);
+          }
         }
       };
 
@@ -357,10 +369,20 @@ export function App() {
         if (activeMode === 'direct') {
           setStatusMessage('Live-Diktat beendet.');
         } else {
-          const audioBlob = new Blob(audioChunksRef.current, {
-            type: supportedMimeType || 'audio/webm',
+          await appendQueue;
+          setIsLoading(true);
+          setStatusMessage('Meeting-Datei wird sicher verarbeitet...');
+          const data = await (window as any).electronAPI.finishRecordingFile({
+            mimeType: supportedMimeType || 'audio/webm',
+            language: selectedLanguage,
           });
-          await handleTranscription(audioBlob);
+          setTranscription(data.transcription);
+          if (data.modelUsed) setActiveModel(data.modelUsed);
+          if (data.driveExport?.link) {
+            setExportedLink(data.driveExport.link);
+            setStatusMessage(`Protokoll fertig und in Drive gespeichert: ${data.driveExport.fileName}`);
+          }
+          setIsLoading(false);
         }
       };
 

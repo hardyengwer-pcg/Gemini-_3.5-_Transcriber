@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { exec, execFileSync } from 'node:child_process';
 import WebSocket from 'ws';
 import 'dotenv/config';
-import { exportMarkdownToDrive, transcribeAudio } from './native-services.ts';
+import { exportMarkdownToDrive, transcribeAudio, transcribeAudioFile } from './native-services.ts';
 
 let mainWindow: BrowserWindow | null = null;
 let dictationTargetHwnd = '';
@@ -180,6 +180,34 @@ ipcMain.handle('export-drive', async (_, input) => {
     throw new Error('Ungültiger oder zu großer Markdown-Inhalt.');
   }
   return exportMarkdownToDrive(String(input.title || `Transkript_${Date.now()}`), input.content);
+});
+
+let recordingFilePath = '';
+
+ipcMain.handle('recording-file-start', async () => {
+  recordingFilePath = path.join(app.getPath('temp'), `google-transcriber-${Date.now()}.webm`);
+  fs.writeFileSync(recordingFilePath, Buffer.alloc(0));
+  return true;
+});
+
+ipcMain.handle('recording-file-append', async (_, chunk: ArrayBuffer) => {
+  if (!recordingFilePath || !(chunk instanceof ArrayBuffer)) return false;
+  fs.appendFileSync(recordingFilePath, Buffer.from(chunk));
+  return true;
+});
+
+ipcMain.handle('recording-file-finish', async (_, input) => {
+  if (!recordingFilePath) throw new Error('Keine temporäre Aufnahme vorhanden.');
+  const filePath = recordingFilePath;
+  recordingFilePath = '';
+  try {
+    const result = await transcribeAudioFile(filePath, String(input?.mimeType || 'audio/webm'), String(input?.language || 'auto'), 'protocol');
+    const now = new Date();
+    result.driveExport = await exportMarkdownToDrive(`Transkript_${now.toISOString().slice(0, 10)}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`, result.transcription);
+    return result;
+  } finally {
+    try { fs.unlinkSync(filePath); } catch {}
+  }
 });
 
 // IPC Handler: Direktes Diktieren an die Cursor-Position im aktiven Fremdfenster

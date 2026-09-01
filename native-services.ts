@@ -115,6 +115,40 @@ export async function transcribeAudio(input: {
   return { transcription: response.text || '(Kein Text generiert)', modelUsed: 'gemini-3.5-transcribe' };
 }
 
+export async function transcribeAudioFile(filePath: string, mimeType: string, language: string, mode: 'protocol' | 'direct') {
+  if (!apiKey) throw new Error('GEMINI_API_KEY fehlt in .env');
+  const ai = new GoogleGenAI({ apiKey });
+  const prompt = protocolPrompt(language, mode);
+  let uploaded: any;
+
+  try {
+    uploaded = await ai.files.upload({ file: filePath, mimeType } as any);
+    let attempts = 0;
+    while (uploaded.state === 'PROCESSING' && attempts < 60) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (uploaded.name) uploaded = await ai.files.get({ name: uploaded.name });
+      attempts++;
+    }
+    if (uploaded.state && uploaded.state !== 'ACTIVE') {
+      throw new Error(`Audio-Datei konnte nicht aktiviert werden: ${uploaded.state}`);
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.5-transcribe',
+      contents: [{ role: 'user', parts: [
+        { fileData: { fileUri: uploaded.uri, mimeType: uploaded.mimeType || mimeType } },
+        { text: prompt },
+      ] }],
+      config: { maxOutputTokens: 65536, temperature: 0 },
+    });
+    return { transcription: response.text || '(Kein Text generiert)', modelUsed: 'gemini-3.5-transcribe' };
+  } finally {
+    if (uploaded?.name) {
+      try { await ai.files.delete({ name: uploaded.name }); } catch {}
+    }
+  }
+}
+
 export async function exportMarkdownToDrive(title: string, content: string) {
   const drive = google.drive({ version: 'v3', auth: getAuth() });
   const folderId = await recordingsFolderId(drive);
