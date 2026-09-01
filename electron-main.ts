@@ -201,7 +201,17 @@ ipcMain.handle('recording-file-finish', async (_, input) => {
   const filePath = recordingFilePath;
   recordingFilePath = '';
   try {
-    const result = await transcribeAudioFile(filePath, String(input?.mimeType || 'audio/webm'), String(input?.language || 'auto'), 'protocol');
+    const mimeType = String(input?.mimeType || 'audio/webm');
+    const language = String(input?.language || 'auto');
+    const fileSize = fs.statSync(filePath).size;
+    const result = fileSize <= 18 * 1024 * 1024
+      ? await transcribeAudio({
+          audioBase64: fs.readFileSync(filePath).toString('base64'),
+          mimeType,
+          language,
+          mode: 'protocol',
+        })
+      : await transcribeAudioFile(filePath, mimeType, language, 'protocol');
     const now = new Date();
     result.driveExport = await exportMarkdownToDrive(`Transkript_${now.toISOString().slice(0, 10)}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`, result.transcription);
     return result;

@@ -130,7 +130,8 @@ export async function transcribeAudioFile(filePath: string, mimeType: string, la
       attempts++;
     }
     if (uploaded.state && uploaded.state !== 'ACTIVE') {
-      throw new Error(`Audio-Datei konnte nicht aktiviert werden: ${uploaded.state}`);
+      const detail = uploaded.error?.message || uploaded.state;
+      throw new Error(`Audio-Datei konnte nicht aktiviert werden: ${detail}`);
     }
 
     const response = await ai.models.generateContent({
