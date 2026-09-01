@@ -369,20 +369,26 @@ export function App() {
         if (activeMode === 'direct') {
           setStatusMessage('Live-Diktat beendet.');
         } else {
-          await appendQueue;
-          setIsLoading(true);
-          setStatusMessage('Meeting-Datei wird sicher verarbeitet...');
-          const data = await (window as any).electronAPI.finishRecordingFile({
-            mimeType: supportedMimeType || 'audio/webm',
-            language: selectedLanguage,
-          });
-          setTranscription(data.transcription);
-          if (data.modelUsed) setActiveModel(data.modelUsed);
-          if (data.driveExport?.link) {
-            setExportedLink(data.driveExport.link);
-            setStatusMessage(`Protokoll fertig und in Drive gespeichert: ${data.driveExport.fileName}`);
+          try {
+            await appendQueue;
+            setIsLoading(true);
+            setStatusMessage('Meeting-Datei wird sicher verarbeitet...');
+            const data = await (window as any).electronAPI.finishRecordingFile({
+              mimeType: supportedMimeType || 'audio/webm',
+              language: selectedLanguage,
+            });
+            setTranscription(data.transcription);
+            if (data.modelUsed) setActiveModel(data.modelUsed);
+            if (data.driveExport?.link) {
+              setExportedLink(data.driveExport.link);
+              setStatusMessage(`Protokoll fertig und in Drive gespeichert: ${data.driveExport.fileName}`);
+            }
+          } catch (error: any) {
+            console.error('Protocol finalization error:', error);
+            setStatusMessage(`Protokoll konnte nicht erstellt werden: ${error?.message || error}`);
+          } finally {
+            setIsLoading(false);
           }
-          setIsLoading(false);
         }
       };
 
