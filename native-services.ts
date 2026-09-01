@@ -43,15 +43,24 @@ function protocolPrompt(language: string, mode: 'protocol' | 'direct'): string {
 - [Sprecher]
 
 ## Notizen und Agenda
-- [Kernpunkte und Entscheidungen]
+- [Kernpunkte und Entscheidungen, sprachlich bereinigt]
 
 ## Aktionspunkte
-- [ ] **[Verantwortliche Person]:** [Aufgabe und Frist]
+- [ ] **[Verantwortliche Person]:** [Aufgabe und Frist, sprachlich bereinigt]
 
 ## Wortgetreues Transkript
 [Exakter Wortlaut mit Sprecherwechseln]
 
-Keine Emojis. Keine erfundenen Inhalte. Im Verbatim-Bereich nichts zusammenfassen.`;
+Regeln für die bereinigten Bereiche:
+- Entferne Füllwörter und Sprechpausen wie "äh", "öh", "hm", "also" und sinnlose Wiederholungen.
+- Korrigiere offensichtliche Versprecher nur, wenn die beabsichtigte Aussage eindeutig ist.
+- Erhalte Namen, Fachbegriffe, Zahlen, Entscheidungen und Unsicherheiten exakt.
+- Erfinde keine Inhalte und ändere keine Verantwortlichkeiten.
+
+Regeln für den Verbatim-Bereich:
+- Bewahre dort den vollständigen Originalwortlaut einschließlich Füllwörtern, Wiederholungen und Versprechern.
+- Keine Zusammenfassung und keine sprachliche Bereinigung im Verbatim-Bereich.
+- Keine Emojis.`;
 }
 
 export async function transcribeAudio(input: {
