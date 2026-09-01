@@ -21,10 +21,12 @@ Eigenständige Desktop-Anwendung (Electron + React + Google Gemini) zur systemwe
 ## Aktueller Zwischenstand
 
 - **Batch-Protokoll:** `gemini-3.5-transcribe` wird im Electron-Main-Prozess verwendet. Das Ergebnis wird automatisch als Markdown in `Meet Recordings` gespeichert.
+- **Lange Meetings:** Protokoll-Audio wird während der Aufnahme chunkweise in einer temporären Main-Prozess-Datei geschrieben. Der Renderer hält nicht mehr die gesamte Aufnahme im RAM und übergibt keine riesige Base64-Nutzlast beim Stop.
 - **Live-Diktat:** `gemini-3.5-transcribe-live` ist über eine bidirektionale Verbindung im Electron-Main-Prozess integriert. Der Renderer überträgt PCM-Audio ausschließlich über die gehärtete Preload-IPC-Bridge.
 - **Latenz:** Das Live-Modell liefert bestätigte Segmente nach Voice-Activity-Erkennung, nicht jedes Wort als garantiertes Interim-Token. Die aktuelle Latenz liegt abhängig von Sprechpausen und API-Verarbeitung typischerweise bei mehreren Sekunden.
 - **Cursor-Injektion:** Das aktive Zielfenster wird beim F9-Start per Windows-HWND gespeichert; Segmente werden anschließend atomar über native `SendInput`-Tastatureingabe eingefügt.
 - **Known Limitation:** Anwendungen mit höherem Windows-Rechtestatus als der Transcriber können Eingaben durch Windows UIPI blockieren.
+- **Temporäre Audiodatei:** Die Datei liegt nur während der Protokollverarbeitung im lokalen Temp-Verzeichnis und wird nach Upload/Transkription im Main-Prozess gelöscht.
 
 ---
 
