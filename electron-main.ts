@@ -205,9 +205,16 @@ ipcMain.handle('recording-file-finish', async (_, input) => {
     const language = String(input?.language || 'auto');
     const fileSize = fs.statSync(filePath).size;
     console.log(`[Protocol] Aufnahme beendet: ${(fileSize / 1024 / 1024).toFixed(1)} MB`);
-    // Meeting-Aufnahmen immer als Datei verarbeiten; das vermeidet große
-    // Base64-Requests und ist für 30+ Minuten stabiler.
-    const result = await transcribeAudioFile(filePath, mimeType, language, 'protocol');
+    // Kurze Aufnahmen inline verarbeiten; große Meetings über Files API.
+    // Das vermeidet Files-API-Probleme mit sehr kleinen WebM-Containern.
+    const result = fileSize <= 12 * 1024 * 1024
+      ? await transcribeAudio({
+          audioBase64: fs.readFileSync(filePath).toString('base64'),
+          mimeType,
+          language,
+          mode: 'protocol',
+        })
+      : await transcribeAudioFile(filePath, mimeType, language, 'protocol');
     console.log(`[Protocol] Transkription fertig mit ${result.modelUsed}`);
     const now = new Date();
     result.driveExport = await exportMarkdownToDrive(`Transkript_${now.toISOString().slice(0, 10)}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`, result.transcription);
