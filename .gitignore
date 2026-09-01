@@ -1,0 +1,10 @@
+node_modules/
+dist/
+electron-main.cjs
+electron-preload.cjs
+electron-main.js
+electron-preload.js
+temp_recording_*
+.env
+.DS_Store
+*.log
