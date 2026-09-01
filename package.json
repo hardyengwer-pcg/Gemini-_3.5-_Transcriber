@@ -1,0 +1,43 @@
+{
+  "name": "google-transcriber",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "electron-main.cjs",
+  "scripts": {
+    "start": "tsc && vite build && esbuild electron-main.ts --bundle --platform=node --format=cjs --external:electron --outfile=electron-main.cjs && esbuild electron-preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=electron-preload.cjs && concurrently -k \"tsx server.ts\" \"wait-on http://localhost:3005 && electron .\"",
+    "app": "concurrently -k \"tsx server.ts\" \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev": "vite",
+    "build": "tsc && vite build && esbuild electron-main.ts --bundle --platform=node --format=cjs --external:electron --outfile=electron-main.cjs && esbuild electron-preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=electron-preload.cjs",
+    "preview": "vite preview",
+    "server": "tsx server.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^2.12.0",
+    "@tailwindcss/vite": "^4.1.14",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
+    "googleapis": "^173.0.0",
+    "lucide-react": "^0.546.0",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "tailwindcss": "^4.1.14",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^10.0.5",
+    "cross-env": "^10.1.0",
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.3",
+    "wait-on": "^9.1.0"
+  }
+}
