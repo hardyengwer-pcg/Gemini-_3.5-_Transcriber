@@ -63,6 +63,21 @@ Regeln für den Verbatim-Bereich:
 - Keine Emojis.`;
 }
 
+function extractTranscriptionText(response: any): string {
+  if (response?.text && typeof response.text === 'string' && response.text.trim()) {
+    return response.text.trim();
+  }
+
+  for (const candidate of response?.candidates || []) {
+    for (const part of candidate.content?.parts || []) {
+      if (part.text?.trim()) return part.text.trim();
+      if (part.audioTranscription?.text?.trim()) return part.audioTranscription.text.trim();
+      if (part.transcript?.text?.trim()) return part.transcript.text.trim();
+    }
+  }
+  return '';
+}
+
 export async function transcribeAudio(input: {
   audioBase64: string;
   mimeType: string;
@@ -112,7 +127,9 @@ export async function transcribeAudio(input: {
       try { fs.unlinkSync(tempPath); } catch {}
     }
   }
-  return { transcription: response.text || '(Kein Text generiert)', modelUsed: 'gemini-3.5-transcribe' };
+  const transcription = extractTranscriptionText(response);
+  if (!transcription) throw new Error('Gemini hat keinen Transkripttext zurückgegeben.');
+  return { transcription, modelUsed: 'gemini-3.5-transcribe' };
 }
 
 export async function transcribeAudioFile(filePath: string, mimeType: string, language: string, mode: 'protocol' | 'direct') {
@@ -142,7 +159,9 @@ export async function transcribeAudioFile(filePath: string, mimeType: string, la
       ] }],
       config: { maxOutputTokens: 65536, temperature: 0 },
     });
-    return { transcription: response.text || '(Kein Text generiert)', modelUsed: 'gemini-3.5-transcribe' };
+    const transcription = extractTranscriptionText(response);
+    if (!transcription) throw new Error('Gemini hat keinen Transkripttext zurückgegeben.');
+    return { transcription, modelUsed: 'gemini-3.5-transcribe' };
   } finally {
     if (uploaded?.name) {
       try { await ai.files.delete({ name: uploaded.name }); } catch {}
