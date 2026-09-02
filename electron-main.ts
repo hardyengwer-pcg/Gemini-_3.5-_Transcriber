@@ -204,6 +204,7 @@ ipcMain.handle('recording-file-finish', async (_, input) => {
     const mimeType = String(input?.mimeType || 'audio/webm');
     const language = String(input?.language || 'auto');
     const fileSize = fs.statSync(filePath).size;
+    if (fileSize === 0) throw new Error('Die Aufnahme enthält keine Audiodaten.');
     console.log(`[Protocol] Aufnahme beendet: ${(fileSize / 1024 / 1024).toFixed(1)} MB`);
     // Kurze Aufnahmen inline verarbeiten; große Meetings über Files API.
     // Das vermeidet Files-API-Probleme mit sehr kleinen WebM-Containern.

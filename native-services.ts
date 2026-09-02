@@ -147,7 +147,8 @@ export async function transcribeAudioFile(filePath: string, mimeType: string, la
     uploaded = await ai.files.upload({ file: filePath, mimeType } as any);
     console.log(`[Native Transcribe] Upload abgeschlossen: ${uploaded.name || uploaded.uri}, Status: ${uploaded.state || 'unknown'}`);
     let attempts = 0;
-    while (uploaded.state === 'PROCESSING' && attempts < 60) {
+    // Long meeting recordings can take several minutes before Files API activation.
+    while (uploaded.state === 'PROCESSING' && attempts < 300) {
       await new Promise(resolve => setTimeout(resolve, 2000));
       if (uploaded.name) {
         uploaded = await ai.files.get({ name: uploaded.name });
@@ -155,13 +156,12 @@ export async function transcribeAudioFile(filePath: string, mimeType: string, la
       }
       attempts++;
     }
+    if (uploaded.state === 'PROCESSING') {
+      throw new Error('Die Audio-Datei wurde innerhalb von 10 Minuten nicht für die Transkription aktiviert.');
+    }
     if (uploaded.state && uploaded.state !== 'ACTIVE') {
       const detail = uploaded.error?.message || uploaded.state;
       throw new Error(`Audio-Datei konnte nicht aktiviert werden: ${detail}`);
-    }
-
-    if (uploaded.state && uploaded.state !== 'ACTIVE') {
-      throw new Error(`Audio-Datei konnte nicht aktiviert werden: ${uploaded.error?.message || uploaded.state}`);
     }
 
     const response = await ai.models.generateContent({
