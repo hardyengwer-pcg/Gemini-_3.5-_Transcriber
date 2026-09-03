@@ -2,7 +2,16 @@ import { google } from 'googleapis';
 import { GoogleGenAI } from '@google/genai';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import ffmpegPath from 'ffmpeg-static';
 import 'dotenv/config';
+
+const execFileAsync = promisify(execFile);
+const configuredFfmpegPath = typeof ffmpegPath === 'string' ? ffmpegPath : '';
+const resolvedFfmpegPath = configuredFfmpegPath && fs.existsSync(configuredFfmpegPath)
+  ? configuredFfmpegPath
+  : path.join(process.cwd(), 'node_modules', 'ffmpeg-static', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
 
 const apiKey = process.env.GEMINI_API_KEY || '';
 const clientId = process.env.GOOGLE_CLIENT_ID || '';
@@ -136,7 +145,7 @@ export async function transcribeAudio(input: {
   return { transcription, modelUsed: 'gemini-3.5-transcribe' };
 }
 
-export async function transcribeAudioFile(filePath: string, mimeType: string, language: string, mode: 'protocol' | 'direct') {
+async function transcribeSingleAudioFile(filePath: string, mimeType: string, language: string, mode: 'protocol' | 'direct') {
   if (!apiKey) throw new Error('GEMINI_API_KEY fehlt in .env');
   const ai = new GoogleGenAI({ apiKey });
   const prompt = protocolPrompt(language, mode);
@@ -178,6 +187,41 @@ export async function transcribeAudioFile(filePath: string, mimeType: string, la
   } finally {
     if (uploaded?.name) {
       try { await ai.files.delete({ name: uploaded.name }); } catch {}
+    }
+  }
+}
+
+export async function transcribeAudioFile(filePath: string, mimeType: string, language: string, mode: 'protocol' | 'direct') {
+  if (!fs.existsSync(resolvedFfmpegPath)) throw new Error(`FFmpeg ist für lange Aufnahmen nicht verfügbar: ${resolvedFfmpegPath}`);
+
+  const segmentPrefix = path.join(path.dirname(filePath), `${path.basename(filePath, path.extname(filePath))}-segment-`);
+  const segmentPattern = `${segmentPrefix}%03d.webm`;
+  const segmentFiles: string[] = [];
+
+  try {
+    await execFileAsync(resolvedFfmpegPath, [
+      '-y', '-i', filePath, '-map', '0:a:0', '-c:a', 'libopus', '-b:a', '32k',
+      '-f', 'segment', '-segment_time', '600', '-reset_timestamps', '1', segmentPattern,
+    ], { windowsHide: true });
+
+    for (const name of fs.readdirSync(path.dirname(filePath))) {
+      if (name.startsWith(path.basename(segmentPrefix)) && name.endsWith('.webm')) {
+        segmentFiles.push(path.join(path.dirname(filePath), name));
+      }
+    }
+    segmentFiles.sort();
+    if (segmentFiles.length === 0) throw new Error('FFmpeg konnte keine Audiosegmente erzeugen.');
+
+    console.log(`[Native Transcribe] ${segmentFiles.length} Audiosegment(e) zur Verarbeitung bereit.`);
+    const transcriptions: string[] = [];
+    for (const segment of segmentFiles) {
+      const result = await transcribeSingleAudioFile(segment, 'audio/webm', language, mode);
+      transcriptions.push(result.transcription);
+    }
+    return { transcription: transcriptions.join('\n\n'), modelUsed: 'gemini-3.5-transcribe' };
+  } finally {
+    for (const segment of segmentFiles) {
+      try { fs.unlinkSync(segment); } catch {}
     }
   }
 }
