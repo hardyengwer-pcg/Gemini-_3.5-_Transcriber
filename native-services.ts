@@ -197,6 +197,7 @@ export async function transcribeAudioFile(filePath: string, mimeType: string, la
   const segmentPrefix = path.join(path.dirname(filePath), `${path.basename(filePath, path.extname(filePath))}-segment-`);
   const segmentPattern = `${segmentPrefix}%03d.mp3`;
   const segmentFiles: string[] = [];
+  let completed = false;
 
   try {
     await execFileAsync(resolvedFfmpegPath, [
@@ -214,14 +215,46 @@ export async function transcribeAudioFile(filePath: string, mimeType: string, la
 
     console.log(`[Native Transcribe] ${segmentFiles.length} Audiosegment(e) zur Verarbeitung bereit.`);
     const transcriptions: string[] = [];
-    for (const segment of segmentFiles) {
-      const result = await transcribeSingleAudioFile(segment, 'audio/mpeg', language, mode);
-      transcriptions.push(result.transcription);
+    for (let index = 0; index < segmentFiles.length; index++) {
+      const segment = segmentFiles[index];
+      let lastError: unknown;
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        try {
+          console.log(`[Native Transcribe] Segment ${index + 1}/${segmentFiles.length}, Versuch ${attempt}/5`);
+          const result = await transcribeSingleAudioFile(segment, 'audio/mpeg', language, mode);
+          transcriptions.push(result.transcription);
+          lastError = undefined;
+          break;
+        } catch (error: any) {
+          lastError = error;
+          const errStr = error?.message || JSON.stringify(error || {});
+          console.warn(`[Native Transcribe] Segment ${index + 1} fehlgeschlagen (Versuch ${attempt}/5):`, error);
+          if (attempt < 5) {
+            let waitTimeMs = attempt * 5000;
+            // Wenn 429 Quota Exceeded (z. B. Free Tier RPM/TPM Limit), Wartezeit dynamisch anpassen
+            const retryMatch = errStr.match(/retry in ([0-9.]+)s/i) || errStr.match(/retryDelay":"([0-9]+)s"/i);
+            if (retryMatch) {
+              waitTimeMs = (Math.ceil(parseFloat(retryMatch[1])) + 5) * 1000;
+              console.log(`[Native Transcribe] 429 Rate-Limit erkannt. Warte ${waitTimeMs / 1000}s vor nächstem Versuch...`);
+            } else if (errStr.includes('429') || errStr.includes('RESOURCE_EXHAUSTED')) {
+              waitTimeMs = 45000; // Standard 45s für Gemini Minute-Window
+              console.log(`[Native Transcribe] 429 Quota erreicht. Warte 45s für Token-Window-Reset...`);
+            }
+            await new Promise(resolve => setTimeout(resolve, waitTimeMs));
+          }
+        }
+      }
+      if (lastError) {
+        throw new Error(`Segment ${index + 1}/${segmentFiles.length} konnte nach 5 Versuchen nicht transkribiert werden: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+      }
     }
+    completed = true;
     return { transcription: transcriptions.join('\n\n'), modelUsed: 'gemini-3.5-transcribe' };
   } finally {
-    for (const segment of segmentFiles) {
-      try { fs.unlinkSync(segment); } catch {}
+    if (completed) {
+      for (const segment of segmentFiles) {
+        try { fs.unlinkSync(segment); } catch {}
+      }
     }
   }
 }

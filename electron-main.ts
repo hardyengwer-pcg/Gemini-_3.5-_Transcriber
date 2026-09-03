@@ -9,6 +9,17 @@ import { exportMarkdownToDrive, transcribeAudio, transcribeAudioFile } from './n
 let mainWindow: BrowserWindow | null = null;
 let dictationTargetHwnd = '';
 let liveGeminiSocket: WebSocket | null = null;
+const diagnosticLogPath = path.join(app.getPath('temp'), 'google-transcriber-electron.log');
+
+function logDiagnostic(message: string, error?: unknown) {
+  const details = error instanceof Error ? `${error.message}\n${error.stack || ''}` : error ? String(error) : '';
+  const line = `[${new Date().toISOString()}] ${message}${details ? `\n${details}` : ''}\n`;
+  try { fs.appendFileSync(diagnosticLogPath, line, 'utf8'); } catch {}
+  console.error(line.trim());
+}
+
+process.on('uncaughtException', (error) => logDiagnostic('[Process] Uncaught exception', error));
+process.on('unhandledRejection', (reason) => logDiagnostic('[Process] Unhandled rejection', reason));
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
@@ -200,6 +211,7 @@ ipcMain.handle('recording-file-finish', async (_, input) => {
   if (!recordingFilePath) throw new Error('Keine temporäre Aufnahme vorhanden.');
   const filePath = recordingFilePath;
   recordingFilePath = '';
+  let completed = false;
   try {
     const mimeType = String(input?.mimeType || 'audio/webm');
     const language = String(input?.language || 'auto');
@@ -223,9 +235,15 @@ ipcMain.handle('recording-file-finish', async (_, input) => {
     const now = new Date();
     result.driveExport = await exportMarkdownToDrive(`Transkript_${now.toISOString().slice(0, 10)}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`, result.transcription);
     console.log(`[Protocol] Drive-Export fertig: ${result.driveExport.fileName}`);
+    completed = true;
     return result;
+  } catch (error) {
+    logDiagnostic(`[Protocol] Verarbeitung fehlgeschlagen. Aufnahme bleibt erhalten: ${filePath}`, error);
+    throw error;
   } finally {
-    try { fs.unlinkSync(filePath); } catch {}
+    if (completed) {
+      try { fs.unlinkSync(filePath); } catch {}
+    }
   }
 });
 
