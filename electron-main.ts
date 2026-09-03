@@ -203,12 +203,15 @@ ipcMain.handle('recording-file-finish', async (_, input) => {
   try {
     const mimeType = String(input?.mimeType || 'audio/webm');
     const language = String(input?.language || 'auto');
+    const durationSeconds = Number(input?.durationSeconds || 0);
     const fileSize = fs.statSync(filePath).size;
     if (fileSize === 0) throw new Error('Die Aufnahme enthält keine Audiodaten.');
     console.log(`[Protocol] Aufnahme beendet: ${(fileSize / 1024 / 1024).toFixed(1)} MB`);
     // Kurze Aufnahmen inline verarbeiten; große Meetings über Files API.
     // Das vermeidet Files-API-Probleme mit sehr kleinen WebM-Containern.
-    const result = fileSize <= 12 * 1024 * 1024
+    const useInlineTranscription = fileSize <= 12 * 1024 * 1024 && durationSeconds > 0 && durationSeconds < 10 * 60;
+    console.log(`[Protocol] Transkriptionspfad: ${useInlineTranscription ? 'inline' : 'segmentiert'}`);
+    const result = useInlineTranscription
       ? await transcribeAudio({
           audioBase64: fs.readFileSync(filePath).toString('base64'),
           mimeType,

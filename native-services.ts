@@ -195,17 +195,17 @@ export async function transcribeAudioFile(filePath: string, mimeType: string, la
   if (!fs.existsSync(resolvedFfmpegPath)) throw new Error(`FFmpeg ist für lange Aufnahmen nicht verfügbar: ${resolvedFfmpegPath}`);
 
   const segmentPrefix = path.join(path.dirname(filePath), `${path.basename(filePath, path.extname(filePath))}-segment-`);
-  const segmentPattern = `${segmentPrefix}%03d.webm`;
+  const segmentPattern = `${segmentPrefix}%03d.mp3`;
   const segmentFiles: string[] = [];
 
   try {
     await execFileAsync(resolvedFfmpegPath, [
-      '-y', '-i', filePath, '-map', '0:a:0', '-c:a', 'libopus', '-b:a', '32k',
+      '-y', '-i', filePath, '-map', '0:a:0', '-c:a', 'libmp3lame', '-b:a', '64k',
       '-f', 'segment', '-segment_time', '600', '-reset_timestamps', '1', segmentPattern,
     ], { windowsHide: true });
 
     for (const name of fs.readdirSync(path.dirname(filePath))) {
-      if (name.startsWith(path.basename(segmentPrefix)) && name.endsWith('.webm')) {
+      if (name.startsWith(path.basename(segmentPrefix)) && name.endsWith('.mp3')) {
         segmentFiles.push(path.join(path.dirname(filePath), name));
       }
     }
@@ -215,7 +215,7 @@ export async function transcribeAudioFile(filePath: string, mimeType: string, la
     console.log(`[Native Transcribe] ${segmentFiles.length} Audiosegment(e) zur Verarbeitung bereit.`);
     const transcriptions: string[] = [];
     for (const segment of segmentFiles) {
-      const result = await transcribeSingleAudioFile(segment, 'audio/webm', language, mode);
+      const result = await transcribeSingleAudioFile(segment, 'audio/mpeg', language, mode);
       transcriptions.push(result.transcription);
     }
     return { transcription: transcriptions.join('\n\n'), modelUsed: 'gemini-3.5-transcribe' };

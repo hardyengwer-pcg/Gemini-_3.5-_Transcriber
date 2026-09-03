@@ -121,6 +121,7 @@ export function App() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<any>(null);
+  const recordingStartedAtRef = useRef<number | null>(null);
 
   // Timer Effekt
   useEffect(() => {
@@ -373,10 +374,13 @@ export function App() {
             await appendQueue;
             setIsLoading(true);
             setStatusMessage('Meeting-Datei wird sicher verarbeitet...');
-            const data = await (window as any).electronAPI.finishRecordingFile({
-              mimeType: supportedMimeType || 'audio/webm',
-              language: selectedLanguage,
-            });
+             const data = await (window as any).electronAPI.finishRecordingFile({
+               mimeType: supportedMimeType || 'audio/webm',
+               language: selectedLanguage,
+               durationSeconds: recordingStartedAtRef.current
+                 ? Math.round((Date.now() - recordingStartedAtRef.current) / 1000)
+                 : recordTime,
+             });
             setTranscription(data.transcription);
             if (data.modelUsed) setActiveModel(data.modelUsed);
             if (data.driveExport?.link) {
@@ -394,6 +398,7 @@ export function App() {
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start(1000); // chunk jede Sekunde
+      recordingStartedAtRef.current = Date.now();
       setIsRecording(true);
       isRecordingRef.current = true;
       setStatusMessage(activeMode === 'direct' ? 'Live-Diktat aktiv: Text tippt live beim Sprechen...' : 'Aufnahme läuft...');
