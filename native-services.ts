@@ -141,8 +141,7 @@ export async function transcribeAudio(input: {
     }
   }
   const transcription = extractTranscriptionText(response);
-  if (!transcription) throw new Error('Gemini hat keinen Transkripttext zurückgegeben.');
-  return { transcription, modelUsed: 'gemini-3.5-transcribe' };
+  return { transcription: transcription || '(Keine Sprache im Audio erkannt)', modelUsed: 'gemini-3.5-transcribe' };
 }
 
 async function transcribeSingleAudioFile(filePath: string, mimeType: string, language: string, mode: 'protocol' | 'direct') {
@@ -182,8 +181,7 @@ async function transcribeSingleAudioFile(filePath: string, mimeType: string, lan
       config: { maxOutputTokens: 65536, temperature: 0 },
     });
     const transcription = extractTranscriptionText(response);
-    if (!transcription) throw new Error('Gemini hat keinen Transkripttext zurückgegeben.');
-    return { transcription, modelUsed: 'gemini-3.5-transcribe' };
+    return { transcription: transcription || '', modelUsed: 'gemini-3.5-transcribe' };
   } finally {
     if (uploaded?.name) {
       try { await ai.files.delete({ name: uploaded.name }); } catch {}
@@ -222,7 +220,9 @@ export async function transcribeAudioFile(filePath: string, mimeType: string, la
         try {
           console.log(`[Native Transcribe] Segment ${index + 1}/${segmentFiles.length}, Versuch ${attempt}/5`);
           const result = await transcribeSingleAudioFile(segment, 'audio/mpeg', language, mode);
-          transcriptions.push(result.transcription);
+          if (result.transcription && result.transcription.trim()) {
+            transcriptions.push(result.transcription.trim());
+          }
           lastError = undefined;
           break;
         } catch (error: any) {
@@ -245,11 +245,15 @@ export async function transcribeAudioFile(filePath: string, mimeType: string, la
         }
       }
       if (lastError) {
-        throw new Error(`Segment ${index + 1}/${segmentFiles.length} konnte nach 5 Versuchen nicht transkribiert werden: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+        console.warn(`[Native Transcribe] Segment ${index + 1}/${segmentFiles.length} konnte nicht transkribiert werden:`, lastError);
+        transcriptions.push(`[Hinweis: Segment ${index + 1}/${segmentFiles.length} konnte nicht transkribiert werden: ${lastError instanceof Error ? lastError.message : String(lastError)}]`);
       }
     }
+    if (transcriptions.length === 0) {
+      throw new Error('Keines der Segmente konnte transkribiert werden.');
+    }
     completed = true;
-    return { transcription: transcriptions.join('\n\n'), modelUsed: 'gemini-3.5-transcribe' };
+    return { transcription: transcriptions.join('\n\n---\n\n'), modelUsed: 'gemini-3.5-transcribe' };
   } finally {
     if (completed) {
       for (const segment of segmentFiles) {
