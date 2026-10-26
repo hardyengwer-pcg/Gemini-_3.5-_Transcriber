@@ -118,6 +118,8 @@ export function App() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const mixAudioContextRef = useRef<AudioContext | null>(null);
+  const captureStreamsRef = useRef<MediaStream[]>([]);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<any>(null);
@@ -197,6 +199,14 @@ export function App() {
       audioContextRef.current.close().catch(() => {});
       audioContextRef.current = null;
     }
+    if (mixAudioContextRef.current) {
+      mixAudioContextRef.current.close().catch(() => {});
+      mixAudioContextRef.current = null;
+    }
+    for (const captureStream of captureStreamsRef.current) {
+      captureStream.getTracks().forEach((track) => track.stop());
+    }
+    captureStreamsRef.current = [];
     analyserRef.current = null;
     setAudioLevel(0);
   };
@@ -243,17 +253,20 @@ export function App() {
           audio: micConstraints,
           video: false,
         });
+        captureStreamsRef.current.push(micStream);
 
         // 2. System-Audio Loopback holen (Electron Desktop Capture)
         let systemStream: MediaStream | null = null;
         try {
           systemStream = await getSystemAudioStream();
+          captureStreamsRef.current.push(systemStream);
         } catch (e) {
           console.warn('System audio cancel/error in both mode:', e);
         }
 
         if (systemStream && systemStream.getAudioTracks().length > 0) {
           const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          mixAudioContextRef.current = audioCtx;
           const dest = audioCtx.createMediaStreamDestination();
 
           const micNode = audioCtx.createMediaStreamSource(micStream);
@@ -270,6 +283,7 @@ export function App() {
         setStatusMessage('Lautsprecher / System-Audio wird verbunden...');
         
         stream = await getSystemAudioStream();
+        captureStreamsRef.current.push(stream);
       } else {
         setStatusMessage('Mikrofon wird initialisiert...');
         const audioConstraints = selectedInputId
@@ -280,6 +294,7 @@ export function App() {
           audio: audioConstraints,
           video: false,
         });
+        captureStreamsRef.current.push(stream);
       }
 
       setupAudioMeter(stream);
@@ -358,7 +373,6 @@ export function App() {
 
       mediaRecorder.onstop = async () => {
         cleanupAudio();
-        stream.getTracks().forEach((t) => t.stop());
 
         liveActiveRef.current = false;
         try { await (window as any).electronAPI.stopLive(); } catch {}
