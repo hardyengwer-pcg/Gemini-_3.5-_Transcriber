@@ -58,9 +58,7 @@ export function App() {
   useEffect(() => {
     async function initAudioDevices() {
       try {
-        const testStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const allDevices = await navigator.mediaDevices.enumerateDevices();
-        testStream.getTracks().forEach((t) => t.stop());
 
         const inputs = allDevices.filter((d) => d.kind === 'audioinput');
         const outputs = allDevices.filter((d) => d.kind === 'audiooutput');
