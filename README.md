@@ -7,6 +7,7 @@ Eigenständige Desktop-Anwendung (Electron + React + Google Gemini) zur systemwe
 ## 🚀 Features
 
 - **Systemweites Audio-Capture:** Nimmt beliebige Audio-Ausgänge (Meet, Videos, Systemaudio) oder Mikrofone auf – unabhängig von spezifischen Drittanbieter-Apps.
+- **Audiozugriff erst bei Aufnahme:** Beim Öffnen der Desktop-App werden keine Mikrofon- oder Systemaudio-Geräte geöffnet. Der Audiozugriff beginnt erst mit `REC` oder `F9` und wird beim Stoppen wieder beendet.
 - **Echtzeit VU-Meter & Pegelanzeige:** Sofortige visuelle Rückmeldung, ob Audio anliegt und aufgenommen wird.
 - **Offizielles Google-Protokoll-Format:**
   - Automatische Erkennung von Datum, Uhrzeit und Sprache (Deutsch / Englisch).
@@ -68,6 +69,8 @@ PORT=3005
 npm start
 ```
 *(Oder per Doppelklick auf `start.cmd`)*
+
+Nach Änderungen am Quellcode sollte die App über `start.cmd` neu gestartet werden. Eine bereits laufende Instanz muss vorher vollständig geschlossen werden, damit der aktuelle Build geladen wird.
 
 ---
 
