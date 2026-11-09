@@ -114,6 +114,10 @@ Verbindliche Markdown-Struktur:
 Regeln:
 - Verwende NIEMALS Emojis oder Icons in der Ausgabe.
 - Bewahre im Transkript-Bereich den EXAKTEN WORTLAUT (Verbatim), ohne Auslassungen oder Glaettungen.
+- Trenne unterschiedliche Stimmen anhand akustischer Merkmale und erkannter Sprecherwechsel in eigene Absätze.
+- Verwende neutrale Labels **[Sprecher 1]**, **[Sprecher 2]** usw., wenn reale Namen nicht sicher aus dem Audio hervorgehen.
+- Rate niemals Namen aus dem Gesprächskontext.
+- Kennzeichne gleichzeitiges Sprechen als **[Überschneidung]**.
 - Weise im Aktionspunkte-Bereich jede Aufgabe eindeutig einer Person zu.`;
     }
 

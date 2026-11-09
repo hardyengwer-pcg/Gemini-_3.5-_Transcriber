@@ -53,7 +53,8 @@ function protocolPrompt(language: string, mode: 'protocol' | 'direct'): string {
 - **Sprache:** [erkannt]
 
 ## Teilnehmende
-- [Sprecher]
+- [Sprecher 1]
+- [Sprecher 2]
 
 ## Notizen und Agenda
 - [Kernpunkte und Entscheidungen, sprachlich bereinigt]
@@ -62,13 +63,18 @@ function protocolPrompt(language: string, mode: 'protocol' | 'direct'): string {
 - [ ] **[Verantwortliche Person]:** [Aufgabe und Frist, sprachlich bereinigt]
 
 ## Wortgetreues Transkript
-[Exakter Wortlaut mit Sprecherwechseln]
+**[Sprecher 1]**: [Exakter Wortlaut]
+**[Sprecher 2]**: [Exakter Wortlaut]
 
 Regeln für die bereinigten Bereiche:
 - Entferne Füllwörter und Sprechpausen wie "äh", "öh", "hm", "also" und sinnlose Wiederholungen.
 - Korrigiere offensichtliche Versprecher nur, wenn die beabsichtigte Aussage eindeutig ist.
 - Erhalte Namen, Fachbegriffe, Zahlen, Entscheidungen und Unsicherheiten exakt.
 - Erfinde keine Inhalte und ändere keine Verantwortlichkeiten.
+- Trenne unterschiedliche Stimmen anhand akustischer Merkmale und erkannter Sprecherwechsel.
+- Beginne bei jedem Sprecherwechsel einen neuen Absatz mit **[Sprecher 1]**, **[Sprecher 2]** usw.
+- Verwende reale Namen nur, wenn sie im Audio eindeutig genannt und sicher zugeordnet werden. Rate niemals Namen aus dem Kontext.
+- Kennzeichne gleichzeitiges Sprechen als **[Überschneidung]**.
 
 Regeln für den Verbatim-Bereich:
 - Bewahre dort den vollständigen Originalwortlaut einschließlich Füllwörtern, Wiederholungen und Versprechern.
